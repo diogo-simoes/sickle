@@ -1,0 +1,2 @@
+# sickle
+A cryptocurrency demonstrator
