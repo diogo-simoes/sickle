@@ -1,0 +1,27 @@
+{
+  "name": "sickle",
+  "version": "1.0.0",
+  "description": "A cryptocurrency demonstrator",
+  "main": "politburo.ts",
+  "scripts": {
+    "build-ts": "npx tsc src/politburo.ts --outFile bin/index.js",
+    "build": "cp src/*.js bin",
+    "start": "npm run build && npx run-func bin/politburo.js start",
+    "stop": "npx run-func bin/index.js stop",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/diogo-simoes/sickle.git"
+  },
+  "author": "diogo-simoes",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/diogo-simoes/sickle/issues"
+  },
+  "homepage": "https://github.com/diogo-simoes/sickle#readme",
+  "devDependencies": {
+    "@types/node": "^20.6.3",
+    "typescript": "^5.2.2"
+  }
+}
