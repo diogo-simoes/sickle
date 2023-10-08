@@ -1,5 +1,7 @@
+
 const Commissar = require('./Commissar');
 
+let agentId;
 let commissar;
 
 process.on("message", (msg) => {
@@ -16,6 +18,7 @@ process.on("message", (msg) => {
 })
 
 const start = function (msg) {
+    agentId = msg.id;
     commissar = new Commissar({id: msg.id});
     commissar.receive(msg.initialCapital);
     process.send({
@@ -38,6 +41,7 @@ setInterval(() => {
     if (amount) {
         process.send({
             type: "pay",
+            agentId,
             amount,
             comradeType: "commissar",
             comrade: commissar

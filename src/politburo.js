@@ -1,5 +1,7 @@
 
-const { fork } = require("child_process");
+const { fork } = require('child_process');
+const { createVerify } = require('node:crypto');
+
 const Comrade = require('./Comrade');
 const Commissar = require('./Commissar');
 
@@ -47,12 +49,22 @@ const printData = () => {
 const agentHandler = (msg) => {
   switch (msg.type) {
     case "pay":
+      const publicKey = Politburo.comradeAgents[msg.agentId].publicKey;
+      const signature = msg.signature;
+      const verify = createVerify('SHA256');
+      verify.write(msg.agentId + "_" + msg.amount);
+      verify.end();
+      if (!verify.verify(publicKey, signature, 'hex')) {
+        console.log(`  !! Error verifying signature for agent #${msg.agentId}`);
+        return;
+      }
       const luckyReceiver = Math.floor(Math.random() * Politburo.comradeAgents.length);
       Politburo.comradeAgents[luckyReceiver].send({command: 'receive', amount: msg.amount});
-      Politburo.comrades[msg.comrade.id] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
+      Politburo.comrades[msg.agentId] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
       break;
     case "initialised":
-      Politburo.comrades[msg.comrade.id] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
+      Politburo.comrades[msg.agentId] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
+      Politburo.comradeAgents[msg.agentId].publicKey = msg.publicKey;
       break;
     default:
       console.log(`  !! Error getting message from agent... Unknown request: ${msg.type}`);
@@ -67,16 +79,19 @@ const setup = () => {
     agent.send({command: 'start', id: i, initialCapital: 100});
     Politburo.comradeAgents[i] = agent;
   }
+  /*
   const commissarAgent = fork('bin/commissar-agent.js');
   commissarAgent.on('message', agentHandler);
   commissarAgent.send({command: 'start', id: 10, initialCapital: 100});
   Politburo.comradeAgents[10] = commissarAgent;
+  */
   printData();
 }
 
 const list = () => {
   console.clear();
   console.log(Politburo.comrades);
+  console.log(Politburo.comradeAgents);
   start();
 }
 
