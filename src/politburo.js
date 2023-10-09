@@ -1,6 +1,5 @@
 
 const { fork } = require('child_process');
-const { createVerify } = require('node:crypto');
 
 const Comrade = require('./Comrade');
 const Commissar = require('./Commissar');
@@ -9,7 +8,8 @@ const Politburo = {
   comradeAgents: [],
   comrades: [],
   commissarAgents: [],
-  commissars: []
+  commissars: [],
+  transactions: []
 }
 
 const repl = require('readline').createInterface({
@@ -46,52 +46,66 @@ const printData = () => {
   start();
 }
 
-const agentHandler = (msg) => {
-  switch (msg.type) {
-    case "pay":
-      const publicKey = Politburo.comradeAgents[msg.agentId].publicKey;
-      const signature = msg.signature;
-      const verify = createVerify('SHA256');
-      verify.write(msg.agentId + "_" + msg.amount);
-      verify.end();
-      if (!verify.verify(publicKey, signature, 'hex')) {
-        console.log(`  !! Error verifying signature for agent #${msg.agentId}`);
-        return;
-      }
-      const luckyReceiver = Math.floor(Math.random() * Politburo.comradeAgents.length);
-      Politburo.comradeAgents[luckyReceiver].send({command: 'receive', amount: msg.amount});
-      Politburo.comrades[msg.agentId] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
-      break;
-    case "initialised":
-      Politburo.comrades[msg.agentId] = (msg.comradeType === 'commissar' ? new Commissar(msg.comrade) : new Comrade(msg.comrade));
-      Politburo.comradeAgents[msg.agentId].publicKey = msg.publicKey;
-      break;
-    default:
-      console.log(`  !! Error getting message from agent... Unknown request: ${msg.type}`);
+const childHandler = function() {
+  let semaphore = 0;
+  return (msg) => {
+    switch (msg.event) {
+      case "initialised":
+        if (msg.comradeType === 'commissar') {
+          Politburo.commissars[msg.agentId] = new Commissar(msg.comrade);
+          semaphore++;
+        } else {
+          Politburo.comrades[msg.agentId] = new Comrade(msg.comrade);
+          semaphore++;
+        }
+        if (semaphore == 11) {
+          broadcastInitialSetup();
+        }
+        break;
+      case 'tx-update':
+        Politburo.transactions.push(msg.tx);
+        Politburo.comradeAgents[msg.tx.outputs[0].destination].send({command: 'receive', amount: msg.tx.outputs[0].amount});
+        Politburo.comrades[msg.tx.input.origin].debit(msg.tx.input.amount);
+        Politburo.comrades[msg.tx.outputs[0].destination].credit(msg.tx.outputs[0].amount);
+        break;
+      default:
+        console.log(`  !! Error getting message from agent... Unknown request: ${msg.event}`);
+    }
   }
-}
+}();
 
 const setup = () => {
   console.log("Setting up a new experiment...");
   for (let i = 0; i < 10; i++) {
-    const agent = fork('bin/comrade-agent.js');
-    agent.on('message', agentHandler);
+    const agent = fork('src/comrade-agent.js');
+    agent.on('message', childHandler);
     agent.send({command: 'start', id: i, initialCapital: 100});
     Politburo.comradeAgents[i] = agent;
   }
-  /*
-  const commissarAgent = fork('bin/commissar-agent.js');
-  commissarAgent.on('message', agentHandler);
-  commissarAgent.send({command: 'start', id: 10, initialCapital: 100});
-  Politburo.comradeAgents[10] = commissarAgent;
-  */
-  printData();
+  const commissarAgent = fork('src/commissar-agent.js');
+  commissarAgent.on('message', childHandler);
+  commissarAgent.send({command: 'start', id: 0, initialCapital: 0});
+  Politburo.commissarAgents[0] = commissarAgent;
+  start();
+}
+
+const broadcastInitialSetup = () => {
+  Politburo.commissarAgents.forEach( (agent) => {
+    agent.send({command: 'census', comrades: Politburo.comrades});
+  });
+  Politburo.comradeAgents.forEach( (agent) => {
+    agent.send({command: 'census', comrades: Politburo.comrades, commissar: Politburo.commissars[0]});
+  });
 }
 
 const list = () => {
-  console.clear();
-  console.log(Politburo.comrades);
-  console.log(Politburo.comradeAgents);
+  console.log("");
+  console.log("      REGISTERED TRANSACTIONS    ");
+  console.log("");
+  Politburo.transactions.forEach( (tx) => {
+    console.log(tx);
+  });
+  console.log("");
   start();
 }
 
@@ -99,8 +113,12 @@ const stop = () => {
   Politburo.comradeAgents.forEach( (agent) => {
     agent.kill();
   });
+  Politburo.commissarAgents.forEach( (agent) => {
+    agent.kill();
+  });
   console.log("Bye-bye!");
   repl.close();
+  process.exit();
 }
 
 /*
@@ -114,4 +132,4 @@ function randomGaussian() {
   return num
 }*/
 
-module.exports = {start, stop}
+start();

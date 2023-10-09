@@ -2,10 +2,12 @@
 class Comrade {
     id;
     wallet;
+    publicKey;
 
-    constructor({id, wallet}) {
+    constructor({id, wallet, publicKey}) {
         this.id = id || 0;
         this.wallet = wallet || 0;
+        this.publicKey = publicKey;
     }
 
     get balance () {
@@ -43,7 +45,11 @@ class Comrade {
         return amount;
     }
 
-    receive (amount) {
+    debit (amount) {
+        this.wallet -= amount;
+    }
+
+    credit (amount) {
         this.wallet += amount;
     }
 

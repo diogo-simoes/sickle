@@ -1,11 +1,15 @@
-
+const { v4: uuidv4 } = require('uuid');
 const { generateKeyPairSync, createSign } = require('node:crypto');
+const axios = require('axios');
 
 const Comrade = require('./Comrade');
-const { create } = require('node:domain');
+const Commissar = require('./Commissar');
 
+const passphrase = 'this-is-my-little-secret';
 let agentId;
 let comrade;
+const comrades = [];
+let commissar;
 
 const {
     publicKey,
@@ -20,7 +24,7 @@ const {
       type: 'pkcs8',
       format: 'pem',
       cipher: 'aes-256-cbc',
-      passphrase: 'top secret',
+      passphrase,
     },
   });
 
@@ -29,52 +33,59 @@ process.on("message", (msg) => {
         case "start":
             start(msg);
             break;
+        case "census":
+            msg.comrades.forEach( (comrade) => {
+                comrades.push(new Comrade(comrade));
+            });
+            commissar = new Commissar(msg.commissar);
+            nextTrade();
+            break;
         case "receive":
-            receive(msg.amount);
+            comrade.credit(msg.amount);
             break;
         default:
-            console.log(`  !! Error initialising agent... Unknown command: ${msg.command}`);
+            console.log(`  !! comrade-agent: Error parsisng message... Unknown command: ${msg.command}`);
     }
 })
 
 const start = function (msg) {
     agentId = msg.id;
-    comrade = new Comrade({id: msg.id});
-    comrade.receive(msg.initialCapital);
+    comrade = new Comrade({id: msg.id, publicKey});
+    comrade.credit(msg.initialCapital);
     process.send({
-        type: "initialised",
+        event: "initialised",
         agentId,
-        publicKey,
         comradeType: "comrade",
         comrade
     });
 }
 
-const receive = function (amount) {
-    comrade.receive(amount);
+const nextTrade = function () {
+    setTimeout(() => {
+        const amount = comrade.balance > 0 ? comrade.pay() : 0;
+        if (amount) {
+            const txId = uuidv4();
+            const receiverId = Math.floor(Math.random() * comrades.length);
+            const sign = createSign('SHA256');
+            sign.write(txId);
+            sign.end();
+            const signature = sign.sign({
+                key: privateKey,
+                passphrase
+            }, 'hex');
+            axios.post(commissar.url + '/pay', {
+                txId,
+                senderId: comrade.id,
+                amount,
+                receiverId,
+                signature
+            }).then( (res) => {
+                // TODO: successful transaction -> update wallet
+            }).catch( (err) => {
+                comrade.credit(amount);
+                console.log(`  !! Failed to post transaction with txId:${txId}`);
+            });
+        }
+        nextTrade();
+    }, 1000 + (Math.random() * 9000));
 }
-
-const pay = function () {
-    return comrade.balance > 0 ? comrade.pay() : 0;
-}
-
-setInterval(() => {
-    const amount = pay();
-    if (amount) {
-        const sign = createSign('SHA256');
-        sign.write(agentId + "_" + amount);
-        sign.end();
-        const signature = sign.sign({
-            key: privateKey,
-            passphrase: 'top secret'
-        }, 'hex');
-        process.send({
-            type: "pay",
-            agentId,
-            signature,
-            amount,
-            comradeType: "comrade",
-            comrade
-        });
-    }
-}, 1000);
