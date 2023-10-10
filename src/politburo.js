@@ -9,7 +9,7 @@ const Politburo = {
   comrades: [],
   commissarAgents: [],
   commissars: [],
-  transactions: []
+  blockchain: []
 }
 
 const repl = require('readline').createInterface({
@@ -58,16 +58,19 @@ const childHandler = function() {
           Politburo.comrades[msg.agentId] = new Comrade(msg.comrade);
           semaphore++;
         }
-        if (semaphore == 11) {
+        if (semaphore === 11) {
           broadcastInitialSetup();
         }
         break;
       case 'tx-update':
-        Politburo.transactions.push(msg.tx);
         Politburo.comradeAgents[msg.tx.outputs[0].destination].send({command: 'receive', amount: msg.tx.outputs[0].amount});
         Politburo.comrades[msg.tx.input.origin].debit(msg.tx.input.amount);
         Politburo.comrades[msg.tx.outputs[0].destination].credit(msg.tx.outputs[0].amount);
         break;
+        case 'blockchain-update':
+          Politburo.blockchain.push(msg.block);
+          console.log(` :: New block sealed hash#${msg.block.hash}`);
+          break;  
       default:
         console.log(`  !! Error getting message from agent... Unknown request: ${msg.event}`);
     }
@@ -100,10 +103,10 @@ const broadcastInitialSetup = () => {
 
 const list = () => {
   console.log("");
-  console.log("      REGISTERED TRANSACTIONS    ");
+  console.log("      BLOCKCHAIN EXTRACT    ");
   console.log("");
-  Politburo.transactions.forEach( (tx) => {
-    console.log(tx);
+  Politburo.blockchain.forEach( (block) => {
+    console.log(`{ hash:${block.hash}, seed:${block.seed}, txCount:${block.transactions.length}, parent:${block.parentHash} }`);
   });
   console.log("");
   start();

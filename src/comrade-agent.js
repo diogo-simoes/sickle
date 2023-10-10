@@ -83,9 +83,9 @@ const nextTrade = function () {
                 // TODO: successful transaction -> update wallet
             }).catch( (err) => {
                 comrade.credit(amount);
-                console.log(`  !! Failed to post transaction with txId:${txId}`);
+                console.error(`  !! Failed to post transaction with txId:${txId}\n`, err);
             });
         }
         nextTrade();
-    }, 1000 + (Math.random() * 9000));
+    }, 100 + (Math.random() * 100));
 }
