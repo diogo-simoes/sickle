@@ -80,12 +80,12 @@ const childHandler = function() {
 const setup = () => {
   console.log("Setting up a new experiment...");
   for (let i = 0; i < 10; i++) {
-    const agent = fork('src/comrade-agent.js');
+    const agent = fork(process.env.SICKLE_PATH + '/server/comrade-agent.js');
     agent.on('message', childHandler);
     agent.send({command: 'start', id: i, initialCapital: 100});
     Politburo.comradeAgents[i] = agent;
   }
-  const commissarAgent = fork('src/commissar-agent.js');
+  const commissarAgent = fork(process.env.SICKLE_PATH + '/server/commissar-agent.js');
   commissarAgent.on('message', childHandler);
   commissarAgent.send({command: 'start', id: 0, initialCapital: 0});
   Politburo.commissarAgents[0] = commissarAgent;

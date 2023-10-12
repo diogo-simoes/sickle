@@ -4,9 +4,12 @@
   "description": "A cryptocurrency demonstrator",
   "main": "politburo.ts",
   "scripts": {
-    "build": "cp src/*.js bin",
-    "debug": "node --inspect src/politburo.js",
-    "start": "node src/politburo.js",
+    "clean": "rm -rf bin/*",
+    "build-client": "babel src/client -d bin/client",
+    "build-server": "cp -r src/server bin",
+    "build": "npm run clean && npm run build-server && npm run build-client",
+    "debug": "node --inspect src/server/politburo.js",
+    "start": "npm run build && SICKLE_PATH=bin node bin/server/politburo.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -20,12 +23,18 @@
   },
   "homepage": "https://github.com/diogo-simoes/sickle#readme",
   "devDependencies": {
+    "@babel/cli": "^7.23.0",
+    "@babel/core": "^7.23.2",
+    "@babel/preset-env": "^7.23.2",
+    "@babel/preset-react": "^7.22.15",
     "@types/node": "^20.6.3",
     "typescript": "^5.2.2"
   },
   "dependencies": {
     "axios": "^1.5.1",
     "express": "^4.18.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "uuid": "^9.0.1"
   }
 }
