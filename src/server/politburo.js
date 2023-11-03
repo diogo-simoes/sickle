@@ -74,10 +74,15 @@ const childHandlerFactory = function() {
         Politburo.comrades[msg.tx.input.origin].debit(msg.tx.input.amount);
         Politburo.comrades[msg.tx.outputs[0].destination].credit(msg.tx.outputs[0].amount);
         break;
-        case 'blockchain-update':
+      case 'blockchain-update':
           Politburo.blockchain.push(msg.block);
           console.log(` :: New block sealed hash#${msg.block.hash}`);
-          break;  
+          break;
+      case 'error':
+        stop();
+        console.err(msg.emsg);
+        if (msg.err) console.err(msg.err);
+        break;
       default:
         console.log(`  !! Error getting message from agent... Unknown request: ${msg.event}`);
     }
@@ -132,6 +137,7 @@ const stop = () => {
   Politburo.commissarAgents.forEach( (agent) => {
     agent.kill();
   });
+  console.log("Stopped ongoing experiment.");
   loop();
 }
 
@@ -144,8 +150,24 @@ const exit = () => {
 
 const start = function () {
   Politburo.app.use('/', express.static('bin/public'));
-  //Politburo.app.use(express.json());
-  //Politburo.app.use('/', express.static('app', {index: "/bin/client/index.js"}));
+  Politburo.app.use(express.json());
+  
+  Politburo.app.post('/start', (req, res) => {
+    if (req.body.population) {
+      Politburo.comradeCount = parseInt(req.body.population);
+    }
+    setup();
+    res.sendStatus(200);
+  });
+
+  Politburo.app.post('/stop', (req, res) => {
+    stop();
+    res.sendStatus(200);
+  });
+
+  Politburo.app.post('/update', (req, res) => {
+    res.status(200).json({comrades: Politburo.comrades});
+  });
 
   const server = Politburo.app.listen(3000, () => {
     console.log(`SickleUI running at http://${server.address().address}:${server.address().port}`);

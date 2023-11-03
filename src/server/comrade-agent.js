@@ -83,7 +83,12 @@ const nextTrade = function () {
                 // TODO: successful transaction -> update wallet
             }).catch( (err) => {
                 comrade.credit(amount);
-                console.error(`  !! Failed to post transaction with txId:${txId}\n`, err);
+                const emsg = `Comrade E01: Failed to post transaction with txId:${txId}`;
+                process.send({
+                    event: "error",
+                    emsg,
+                    err
+                });
             });
         }
         nextTrade();
