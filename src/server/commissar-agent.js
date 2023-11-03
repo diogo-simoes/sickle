@@ -31,7 +31,7 @@ process.on("message", (msg) => {
 
 const start = function (msg) {
     config.agentId = msg.id;
-    config.commissar = new Commissar({id: msg.id});
+    config.commissar = new Commissar({id: msg.id, url: msg.url});
     config.commissar.credit(msg.initialCapital);
     bootstrapAPI(msg);
     process.send({
@@ -66,7 +66,12 @@ const bootstrapAPI = function ({port}) {
         verify.write(tx.id);
         verify.end();
         if (!verify.verify(publicKey, signature, 'hex')) {
-            console.error(`  !! Error verifying signature for tx #${tx}`);
+            const emsg = `Commissar E01: Error verifying signature for tx #${tx}`;
+            res.status(500).send(emsg);
+            process.send({
+                event: "error",
+                emsg
+            });
             return;
         }
         config.transactions.push(tx);
@@ -75,6 +80,7 @@ const bootstrapAPI = function ({port}) {
             tx
         });
         sealBlockchain();
+        res.sendStatus(200);
     });
     config.api.listen(_port, () => {
         console.log(`CommissarAPI running and listening on port ${_port}`);
