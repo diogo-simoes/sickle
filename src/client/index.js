@@ -1,8 +1,12 @@
-import { createRoot } from 'react-dom/client';
+import React, { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./styles.css";
 
-// Clear the existing HTML content
-document.body.innerHTML = '<div id="app"></div>';
+import App from "./App";
 
-// Render your React component instead
-const root = createRoot(document.getElementById('app'));
-root.render(<h1>Hello, world</h1>);
+const root = createRoot(document.getElementById("root"));
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);

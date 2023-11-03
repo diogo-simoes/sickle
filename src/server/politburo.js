@@ -1,10 +1,14 @@
 
 const { fork } = require('child_process');
+const express = require('express');
 
 const Comrade = require('./Comrade');
 const Commissar = require('./Commissar');
 
 const Politburo = {
+  app: express(),
+  comradeCount: 10,
+  commissarCount: 1,
   comradeAgents: [],
   comrades: [],
   commissarAgents: [],
@@ -17,10 +21,13 @@ const repl = require('readline').createInterface({
   output: process.stdout,
 });
 
-const start = () => {
+const loop = () => {
     repl.question(` > `, name => {
       switch (name) {
         case 'exit':
+          exit();
+          break;
+        case 'stop':
           stop();
           break;
         case 'setup':
@@ -37,16 +44,16 @@ const start = () => {
 
 const printData = () => {
   console.clear();
-  console.log("      WALLET DISTRO    ");
+  console.log("      WALLET DISTRO     ");
   console.log("");
   Politburo.comrades.forEach( (comrade) => {
     console.log(comrade.print());
   });
   console.log("");
-  start();
+  loop();
 }
 
-const childHandler = function() {
+const childHandlerFactory = function() {
   let semaphore = 0;
   return (msg) => {
     switch (msg.event) {
@@ -58,7 +65,7 @@ const childHandler = function() {
           Politburo.comrades[msg.agentId] = new Comrade(msg.comrade);
           semaphore++;
         }
-        if (semaphore === 11) {
+        if (semaphore === (Politburo.commissarCount + Politburo.comradeCount)) {
           broadcastInitialSetup();
         }
         break;
@@ -75,21 +82,27 @@ const childHandler = function() {
         console.log(`  !! Error getting message from agent... Unknown request: ${msg.event}`);
     }
   }
-}();
+};
 
 const setup = () => {
   console.log("Setting up a new experiment...");
-  for (let i = 0; i < 10; i++) {
-    const agent = fork(process.env.SICKLE_PATH + '/server/comrade-agent.js');
+  const childHandler = childHandlerFactory();
+  Politburo.commissarAgents = [];
+  Politburo.commissars = [];
+  Politburo.comradeAgents = [];
+  Politburo.comrades = [];
+  Politburo.blockchain = [];
+  for (let i = 0; i < Politburo.comradeCount; i++) {
+    const agent = fork(process.env.SICKLE_PATH + '/comrade-agent.js');
     agent.on('message', childHandler);
     agent.send({command: 'start', id: i, initialCapital: 100});
     Politburo.comradeAgents[i] = agent;
   }
-  const commissarAgent = fork(process.env.SICKLE_PATH + '/server/commissar-agent.js');
+  const commissarAgent = fork(process.env.SICKLE_PATH + '/commissar-agent.js');
   commissarAgent.on('message', childHandler);
-  commissarAgent.send({command: 'start', id: 0, initialCapital: 0});
+  commissarAgent.send({command: 'start', id: 0, initialCapital: 0, url: "http://localhost:3100", port: 3100});
   Politburo.commissarAgents[0] = commissarAgent;
-  start();
+  loop();
 }
 
 const broadcastInitialSetup = () => {
@@ -109,7 +122,7 @@ const list = () => {
     console.log(`{ hash:${block.hash}, seed:${block.seed}, txCount:${block.transactions.length}, parent:${block.parentHash} }`);
   });
   console.log("");
-  start();
+  loop();
 }
 
 const stop = () => {
@@ -119,20 +132,23 @@ const stop = () => {
   Politburo.commissarAgents.forEach( (agent) => {
     agent.kill();
   });
+  loop();
+}
+
+const exit = () => {
+  stop();
   console.log("Bye-bye!");
   repl.close();
   process.exit();
 }
 
-/*
-function randomGaussian() {
-  let u = 0, v = 0;
-  while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
-  while(v === 0) v = Math.random();
-  let num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-  num = num / 10.0 + 0.5; // Translate to 0 -> 1
-  if (num > 1 || num < 0) return randomGaussian() // resample between 0 and 1
-  return num
-}*/
+const start = function () {
+  Politburo.app.use('/', express.static('bin/public'));
+  //Politburo.app.use(express.json());
+  //Politburo.app.use('/', express.static('app', {index: "/bin/client/index.js"}));
 
-start();
+  const server = Politburo.app.listen(3000, () => {
+    console.log(`SickleUI running at http://${server.address().address}:${server.address().port}`);
+  });
+  loop();
+}();

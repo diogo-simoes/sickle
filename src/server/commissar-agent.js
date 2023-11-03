@@ -31,7 +31,7 @@ process.on("message", (msg) => {
 
 const start = function (msg) {
     config.agentId = msg.id;
-    config.commissar = new Commissar({id: msg.id});
+    config.commissar = new Commissar({id: msg.id, url: msg.url});
     config.commissar.credit(msg.initialCapital);
     bootstrapAPI(msg);
     process.send({

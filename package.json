@@ -2,14 +2,14 @@
   "name": "sickle",
   "version": "1.0.0",
   "description": "A cryptocurrency demonstrator",
-  "main": "politburo.ts",
+  "main": "politburo.js",
   "scripts": {
     "clean": "rm -rf bin/*",
-    "build-client": "babel src/client -d bin/client",
-    "build-server": "cp -r src/server bin",
+    "build-client": "webpack --mode=development && cp src/client/styles.css bin/public && cp src/client/index.html bin/public",
+    "build-server": "cp src/server/* bin",
     "build": "npm run clean && npm run build-server && npm run build-client",
-    "debug": "node --inspect src/server/politburo.js",
-    "start": "npm run build && SICKLE_PATH=bin node bin/server/politburo.js",
+    "debug": "SICKLE_PATH=src/server node --inspect src/server/politburo.js",
+    "start": "npm run build && SICKLE_PATH=bin node bin/politburo.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -28,7 +28,11 @@
     "@babel/preset-env": "^7.23.2",
     "@babel/preset-react": "^7.22.15",
     "@types/node": "^20.6.3",
-    "typescript": "^5.2.2"
+    "babel-loader": "^9.1.3",
+    "css-loader": "^6.8.1",
+    "typescript": "^5.2.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "axios": "^1.5.1",
